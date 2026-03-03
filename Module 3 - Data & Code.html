@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FreightCo — Delivery Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #080b0f;
+  --surface: #0e1117;
+  --card: #111620;
+  --border: #1a2235;
+  --accent: #00d4aa;
+  --accent-dim: rgba(0,212,170,0.12);
+  --red: #ff4757;
+  --red-dim: rgba(255,71,87,0.12);
+  --warn: #ffd166;
+  --warn-dim: rgba(255,209,102,0.12);
+  --blue: #4d9fff;
+  --blue-dim: rgba(77,159,255,0.12);
+  --text: #dde4f0;
+  --muted: #4a5568;
+  --muted2: #2d3748;
+  --green: #00d4aa;
+  --orange: #ff6b35;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-mark {
+  width: 30px; height: 30px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+
+.logo-text span { color: var(--accent); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,212,170,0.2);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.live-dot {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.topbar-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.main {
+  padding: 24px 28px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.filter-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 5px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover { border-color: var(--accent); color: var(--text); }
+.filter-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.filter-btn.red.active { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+.filter-sep {
+  width: 1px; height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+select.filter-select {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.4s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+  animation: fadeUp 0.4s ease both;
+}
+
+.kpi:hover { border-color: var(--accent); }
+.kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+.kpi.red::before { background: var(--red); }
+.kpi.warn::before { background: var(--warn); }
+.kpi.blue::before { background: var(--blue); }
+.kpi.orange::before { background: var(--orange); }
+
+.kpi-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.kpi-value.green { color: var(--accent); }
+.kpi-value.red { color: var(--red); }
+.kpi-value.warn { color: var(--warn); }
+.kpi-value.blue { color: var(--blue); }
+.kpi-value.orange { color: var(--orange); }
+
+.kpi-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  animation: fadeUp 0.5s ease both;
+}
+
+.chart-card:nth-child(2) { animation-delay: 0.05s; }
+.chart-card:nth-child(3) { animation-delay: 0.1s; }
+
+.chart-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 180px;
+}
+
+.table-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: fadeUp 0.6s ease both;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.table-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.search-box {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  width: 200px;
+}
+
+.search-box::placeholder { color: var(--muted); }
+.search-box:focus { border-color: var(--accent); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+thead th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 20px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+thead th:hover { color: var(--text); }
+
+tbody tr {
+  border-bottom: 1px solid rgba(26,34,53,0.6);
+  transition: background 0.1s;
+}
+
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+tbody tr:last-child { border-bottom: none; }
+
+tbody td {
+  padding: 10px 20px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.badge.delivered { background: rgba(0,212,170,0.1); color: var(--accent); border: 1px solid rgba(0,212,170,0.2); }
+.badge.in_transit { background: rgba(77,159,255,0.1); color: var(--blue); border: 1px solid rgba(77,159,255,0.2); }
+.badge.failed { background: rgba(255,71,87,0.1); color: var(--red); border: 1px solid rgba(255,71,87,0.2); }
+.badge.at_risk { background: rgba(255,209,102,0.1); color: var(--warn); border: 1px solid rgba(255,209,102,0.2); }
+.badge.escalated { background: rgba(255,71,87,0.15); color: #ff4757; border: 1px solid rgba(255,71,87,0.4); font-weight: 600; }
+
+.delay-val { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+.delay-val.late { color: var(--red); }
+.delay-val.early { color: var(--accent); }
+.delay-val.ontime { color: var(--muted); }
+.delay-val.atrisk { color: var(--warn); }
+
+.hub-pill {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.driver-name { font-weight: 500; }
+
+.alert-strip {
+  background: rgba(255,71,87,0.06);
+  border: 1px solid rgba(255,71,87,0.2);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  animation: fadeUp 0.3s ease both;
+}
+
+.alert-strip-icon { font-size: 16px; }
+.alert-strip-text { color: var(--red); font-weight: 500; }
+.alert-strip-detail { color: var(--muted); font-size: 11px; font-family: 'IBM Plex Mono', monospace; }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.page-btns { display: flex; gap: 4px; }
+
+.page-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+
+.page-btn:hover, .page-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* UUID cell truncation */
+.uuid-cell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 3px; }
+
+@media (max-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .charts-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .charts-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">🚚</div>
+    <div class="logo-text">Freight<span>Co</span></div>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 8px;"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);">Delivery Operations Dashboard</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div>SIMULATED DATA</div>
+    <div class="topbar-time" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div id="alertStrip" style="display:none;"></div>
+
+  <div class="filters">
+    <span class="filter-label">Hub:</span>
+    <button class="filter-btn active" onclick="setHub('all',this)">All Hubs</button>
+    <button class="filter-btn" onclick="setHub('North',this)">North</button>
+    <button class="filter-btn" onclick="setHub('South',this)">South</button>
+    <button class="filter-btn" onclick="setHub('East',this)">East</button>
+    <div class="filter-sep"></div>
+    <span class="filter-label">Status:</span>
+    <button class="filter-btn active" onclick="setStatus('all',this)">All</button>
+    <button class="filter-btn" onclick="setStatus('delivered',this)">Delivered</button>
+    <button class="filter-btn" onclick="setStatus('in_transit',this)">In Transit</button>
+    <button class="filter-btn red" onclick="setStatus('failed',this)">Failed</button>
+    <button class="filter-btn" onclick="setStatus('at_risk',this)">⚠ At Risk</button>
+    <button class="filter-btn red" onclick="setStatus('escalated',this)">🔴 Escalated</button>
+    <div class="filter-sep"></div>
+    <span class="filter-label">Driver:</span>
+    <select class="filter-select" id="driverFilter" onchange="setDriver(this.value)">
+      <option value="all">All Drivers</option>
+    </select>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">On-Time Rate by Hub</div>
+      <div class="chart-wrap"><canvas id="hubChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Delivery Status Breakdown</div>
+      <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Avg Delay by Driver (Top 8)</div>
+      <div class="chart-wrap"><canvas id="driverChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Delivery Records</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input class="search-box" type="text" placeholder="Search driver / ID..." id="searchBox" oninput="applyFilters()">
+        <div class="table-count" id="tableCount">-- records</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('id')">ID ↕</th>
+            <th onclick="sortBy('delivery_id')">Delivery ID ↕</th>
+            <th onclick="sortBy('driver_name')">Driver ↕</th>
+            <th onclick="sortBy('hub')">Hub ↕</th>
+            <th onclick="sortBy('scheduled_time')">Scheduled ↕</th>
+            <th onclick="sortBy('actual_time')">Actual ↕</th>
+            <th onclick="sortBy('status')">Status ↕</th>
+            <th onclick="sortBy('delay_minutes')">Delay ↕</th>
+            <th onclick="sortBy('alert_sent_at')">Alert Sent ↕</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div id="pageInfo">Showing 0–0 of 0</div>
+      <div class="page-btns" id="pageBtns"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── DATA (from Supabase public.deliveries) ───────────────────────────────────
+const RAW = [
+  {
+    id: "2a5378ec-8229-470c-b5d9-3458e8c178c2",
+    delivery_id: "TEST-01",
+    driver_name: "Indra Bong",
+    hub: "South",
+    scheduled_time: "2026-02-26 08:54:16",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "31b878cd-74ed-4325-8637-4f2792b148e9",
+    delivery_id: "TEST-02",
+    driver_name: "Puspita Rama",
+    hub: "East",
+    scheduled_time: "2026-02-26 08:56:12",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "b971766e-3e0c-4758-9156-2bf42e2ea39f",
+    delivery_id: "TEST-04",
+    driver_name: "Kevin Tran",
+    hub: "North",
+    scheduled_time: "2026-02-27 08:54:59",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "d3b239f7-515b-4836-80a8-d2d7424355a2",
+    delivery_id: "TEST-03",
+    driver_name: "Amanda Hermawan",
+    hub: "North",
+    scheduled_time: "2026-02-27 05:16:05",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  // ── New entries: 10 different drivers ────────────────────────────────────
+  {
+    id: "a1b2c3d4-0001-4000-8000-aa0011223344",
+    delivery_id: "TEST-05",
+    driver_name: "Dzaky Afandi",
+    hub: "North",
+    scheduled_time: "2026-03-01 09:00:00",
+    actual_time: "2026-03-01 09:08:00",
+    status: "delivered",
+    delay_minutes: 8,
+    alert_sent_at: null
+  },
+  {
+    id: "a1b2c3d4-0002-4000-8000-aa0011223344",
+    delivery_id: "TEST-06",
+    driver_name: "Driver 2",
+    hub: "South",
+    scheduled_time: "2026-03-01 10:00:00",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: 52,
+    alert_sent_at: "2026-03-01 10:55:00"
+  },
+  {
+    id: "a1b2c3d4-0003-4000-8000-aa0011223344",
+    delivery_id: "TEST-07",
+    driver_name: "Driver 3",
+    hub: "East",
+    scheduled_time: "2026-03-01 11:00:00",
+    actual_time: "2026-03-01 10:55:00",
+    status: "delivered",
+    delay_minutes: -5,
+    alert_sent_at: null
+  },
+  {
+    id: "a1b2c3d4-0004-4000-8000-aa0011223344",
+    delivery_id: "TEST-08",
+    driver_name: "Driver 4",
+    hub: "North",
+    scheduled_time: "2026-03-01 12:00:00",
+    actual_time: null,
+    status: "failed",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "a1b2c3d4-0005-4000-8000-aa0011223344",
+    delivery_id: "TEST-09",
+    driver_name: "Driver 5",
+    hub: "South",
+    scheduled_time: "2026-03-01 13:00:00",
+    actual_time: "2026-03-01 13:37:00",
+    status: "delivered",
+    delay_minutes: 37,
+    alert_sent_at: null
+  },
+  {
+    id: "b5c6d7e8-0001-4000-8000-bb0011223344",
+    delivery_id: "TEST-10",
+    driver_name: "Driver 6",
+    hub: "East",
+    scheduled_time: "2026-03-01 14:00:00",
+    actual_time: "2026-03-01 14:45:00",
+    status: "delivered",
+    delay_minutes: 45,
+    alert_sent_at: "2026-03-01 14:30:00"
+  },
+  {
+    id: "b5c6d7e8-0002-4000-8000-bb0011223344",
+    delivery_id: "TEST-11",
+    driver_name: "Driver 7",
+    hub: "North",
+    scheduled_time: "2026-03-02 09:00:00",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "b5c6d7e8-0003-4000-8000-bb0011223344",
+    delivery_id: "TEST-12",
+    driver_name: "Driver 8",
+    hub: "South",
+    scheduled_time: "2026-03-02 10:30:00",
+    actual_time: null,
+    status: "failed",
+    delay_minutes: null,
+    alert_sent_at: null
+  },
+  {
+    id: "b5c6d7e8-0004-4000-8000-bb0011223344",
+    delivery_id: "TEST-13",
+    driver_name: "Driver 9",
+    hub: "East",
+    scheduled_time: "2026-03-02 12:00:00",
+    actual_time: "2026-03-02 11:58:00",
+    status: "delivered",
+    delay_minutes: -2,
+    alert_sent_at: null
+  },
+  {
+    id: "b5c6d7e8-0005-4000-8000-bb0011223344",
+    delivery_id: "TEST-14",
+    driver_name: "Driver 10",
+    hub: "North",
+    scheduled_time: "2026-03-02 14:00:00",
+    actual_time: null,
+    status: "in_transit",
+    delay_minutes: 61,
+    alert_sent_at: "2026-03-02 15:05:00"
+  }
+];
+
+// ─── COMPUTE DELAY (mirrors n8n "Compute Delay" Code node) ───────────────────
+// Logic: for in_transit entries with no actual_time,
+//   computed_delay = Math.round((now - scheduled_time) / 60000)
+//   if computed_delay >= 45 and alert_sent_at is null → set alert_sent_at = now
+//   if computed_delay >= 45 → status = at_risk
+//   if computed_delay >= 90 → status = escalated
+
+function computeData() {
+  const now = new Date();
+  return RAW.map(d => {
+    const entry = { ...d };
+
+    // Only compute for in_transit with no actual_time
+    if (entry.status === 'in_transit' && !entry.actual_time) {
+      const rawTime = entry.scheduled_time.replace(' ', 'T');
+      const scheduled = new Date(rawTime.includes('+') || rawTime.endsWith('Z') ? rawTime : rawTime + 'Z');
+      const computed_delay = Math.round((now - scheduled) / 60000);
+
+      if (computed_delay > 0) {
+        entry.delay_minutes = computed_delay;
+
+        // Set alert_sent_at the moment threshold is first crossed (>= 45 min)
+        if (computed_delay >= 45 && !entry.alert_sent_at) {
+          entry.alert_sent_at = now.toISOString();
+        }
+
+        // Escalate status
+        if (computed_delay >= 90) {
+          entry.status = 'escalated';
+        } else if (computed_delay >= 45) {
+          entry.status = 'at_risk';
+        }
+      }
+    }
+
+    return entry;
+  });
+}
+
+let DATA = computeData();
+
+// Re-compute every minute (mirrors n8n logic; refreshes delay live)
+setInterval(() => {
+  DATA = computeData();
+  applyFilters();
+}, 60000);
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let filterHub = 'all';
+let filterStatus = 'all';
+let filterDriver = 'all';
+let searchText = '';
+let sortCol = 'delivery_id';
+let sortDir = 1;
+let currentPage = 1;
+const PAGE_SIZE = 12;
+
+let hubChart, statusChart, driverChart;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  populateDriverFilter();
+  buildCharts();
+  applyFilters();
+  updateClock();
+  setInterval(updateClock, 1000);
+});
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+function populateDriverFilter() {
+  const drivers = [...new Set(DATA.map(d => d.driver_name))].sort();
+  const sel = document.getElementById('driverFilter');
+  drivers.forEach(n => {
+    const o = document.createElement('option');
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function setHub(val, btn) {
+  filterHub = val;
+  document.querySelectorAll('.filters .filter-btn').forEach(b => {
+    if (['All Hubs','North','South','East'].includes(b.textContent.trim())) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  currentPage = 1;
+  applyFilters();
+}
+
+function setStatus(val, btn) {
+  filterStatus = val;
+  document.querySelectorAll('.filters .filter-btn').forEach(b => {
+    const t = b.textContent.trim();
+    if (!['All Hubs','North','South','East'].includes(t)) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  currentPage = 1;
+  applyFilters();
+}
+
+function setDriver(val) {
+  filterDriver = val;
+  currentPage = 1;
+  applyFilters();
+}
+
+function getFiltered() {
+  return DATA.filter(d => {
+    if (filterHub !== 'all' && d.hub !== filterHub) return false;
+    if (filterStatus !== 'all' && d.status !== filterStatus) return false;
+    if (filterDriver !== 'all' && d.driver_name !== filterDriver) return false;
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      if (!d.driver_name.toLowerCase().includes(q) &&
+          !d.delivery_id.toLowerCase().includes(q) &&
+          !d.id.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function applyFilters() {
+  const filtered = getFiltered();
+  renderKPIs(filtered);
+  renderTable(filtered);
+  renderAlertStrip(filtered);
+  updateCharts(filtered);
+}
+
+// ─── ALERT STRIP ──────────────────────────────────────────────────────────────
+function renderAlertStrip(data) {
+  const atRisk = data.filter(d => d.status === 'at_risk' || d.status === 'escalated');
+  const strip = document.getElementById('alertStrip');
+  if (atRisk.length === 0) { strip.style.display = 'none'; return; }
+  strip.style.display = 'flex';
+  strip.innerHTML = `
+    <div class="alert-strip-icon">🚨</div>
+    <div>
+      <div class="alert-strip-text">${atRisk.length} deliveries are at risk (≥ 45 min late and still in transit)</div>
+      <div class="alert-strip-detail">${atRisk.map(d => `${d.delivery_id} · ${d.driver_name} · +${d.delay_minutes}min`).join(' &nbsp;|&nbsp; ')}</div>
+    </div>
+  `;
+}
+
+// ─── KPIs ────────────────────────────────────────────────────────────────────
+function renderKPIs(data) {
+  const total = data.length;
+  const delivered = data.filter(d => d.status === 'delivered').length;
+  const inTransit = data.filter(d => d.status === 'in_transit' || d.status === 'at_risk' || d.status === 'escalated').length;
+  const failed = data.filter(d => d.status === 'failed').length;
+  const atRisk = data.filter(d => d.status === 'at_risk' || d.status === 'escalated').length;
+  const withDelay = data.filter(d => d.delay_minutes !== null && d.delay_minutes > 0);
+  const avgDelay = withDelay.length ? Math.round(withDelay.reduce((a,b) => a + b.delay_minutes, 0) / withDelay.length) : 0;
+  const onTimeCount = data.filter(d => d.status === 'delivered' && (d.delay_minutes === null || d.delay_minutes <= 10)).length;
+  const onTimePct = delivered ? Math.round((onTimeCount / delivered) * 100) : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi" style="animation-delay:0s">
+      <div class="kpi-label">Total Deliveries</div>
+      <div class="kpi-value blue">${total}</div>
+      <div class="kpi-sub">in current view</div>
+    </div>
+    <div class="kpi" style="animation-delay:0.05s">
+      <div class="kpi-label">On-Time Rate</div>
+      <div class="kpi-value ${onTimePct >= 80 ? 'green' : onTimePct >= 60 ? 'warn' : 'red'}">${delivered > 0 ? onTimePct : '—'}<span style="font-size:16px">${delivered > 0 ? '%' : ''}</span></div>
+      <div class="kpi-sub">${delivered > 0 ? `${onTimeCount} of ${delivered} delivered` : 'no deliveries yet'}</div>
+    </div>
+    <div class="kpi" style="animation-delay:0.1s">
+      <div class="kpi-label">In Transit</div>
+      <div class="kpi-value blue">${inTransit}</div>
+      <div class="kpi-sub">${atRisk > 0 ? `<span style="color:var(--warn)">⚠ ${atRisk} at risk</span>` : 'all on track'}</div>
+    </div>
+    <div class="kpi red" style="animation-delay:0.15s">
+      <div class="kpi-label">Failed</div>
+      <div class="kpi-value red">${failed}</div>
+      <div class="kpi-sub">${total ? Math.round((failed/total)*100) : 0}% of total</div>
+    </div>
+    <div class="kpi warn" style="animation-delay:0.2s">
+      <div class="kpi-label">Avg Delay</div>
+      <div class="kpi-value ${avgDelay > 45 ? 'red' : avgDelay > 20 ? 'warn' : 'green'}">${withDelay.length > 0 ? avgDelay : '—'}<span style="font-size:14px">${withDelay.length > 0 ? 'm' : ''}</span></div>
+      <div class="kpi-sub">${withDelay.length > 0 ? 'late deliveries only' : 'no delay data'}</div>
+    </div>
+  `;
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  applyFilters();
+}
+
+function renderTable(data) {
+  const sorted = [...data].sort((a,b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (av === null || av === undefined) av = sortDir > 0 ? '\uffff' : '';
+    if (bv === null || bv === undefined) bv = sortDir > 0 ? '\uffff' : '';
+    if (typeof av === 'string') return av.localeCompare(bv) * sortDir;
+    return (av - bv) * sortDir;
+  });
+
+  const total = sorted.length;
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  if (currentPage > pages) currentPage = 1;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const slice = sorted.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('tableCount').textContent = `${total} records`;
+  document.getElementById('pageInfo').textContent = `Showing ${total === 0 ? 0 : start+1}–${Math.min(start+PAGE_SIZE, total)} of ${total}`;
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = slice.map(d => {
+    const statusBadge = `<span class="badge ${d.status}">${statusLabel(d.status)}</span>`;
+
+    let delayHtml = '<span style="color:var(--muted)">—</span>';
+    if (d.delay_minutes !== null && d.delay_minutes !== undefined) {
+      const cls = d.delay_minutes < 0 ? 'early' : d.delay_minutes >= 45 ? 'atrisk' : d.delay_minutes > 10 ? 'late' : 'ontime';
+      const prefix = d.delay_minutes < 0 ? '' : '+';
+      delayHtml = `<span class="delay-val ${cls}">${prefix}${d.delay_minutes}m</span>`;
+    }
+
+    const actual = d.actual_time ? fmt(d.actual_time) : '<span style="color:var(--muted)">—</span>';
+    const alertSent = d.alert_sent_at ? fmt(d.alert_sent_at) : '<span style="color:var(--muted)">—</span>';
+
+    // Truncate UUID for display
+    const shortId = d.id.substring(0, 8) + '…';
+
+    return `
+      <tr>
+        <td class="uuid-cell" title="${d.id}">${shortId}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent)">${d.delivery_id}</td>
+        <td class="driver-name">${d.driver_name}</td>
+        <td><span class="hub-pill">${d.hub}</span></td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${fmt(d.scheduled_time)}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${actual}</td>
+        <td>${statusBadge}</td>
+        <td>${delayHtml}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${alertSent}</td>
+      </tr>`;
+  }).join('');
+
+  const pageBtns = document.getElementById('pageBtns');
+  pageBtns.innerHTML = '';
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'page-btn';
+  prevBtn.textContent = '←';
+  prevBtn.disabled = currentPage <= 1;
+  prevBtn.onclick = () => { currentPage--; applyFilters(); };
+  pageBtns.appendChild(prevBtn);
+
+  for (let i = 1; i <= pages; i++) {
+    const b = document.createElement('button');
+    b.className = 'page-btn' + (i === currentPage ? ' active' : '');
+    b.textContent = i;
+    b.onclick = () => { currentPage = i; applyFilters(); };
+    pageBtns.appendChild(b);
+  }
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'page-btn';
+  nextBtn.textContent = '→';
+  nextBtn.disabled = currentPage >= pages;
+  nextBtn.onclick = () => { currentPage++; applyFilters(); };
+  pageBtns.appendChild(nextBtn);
+}
+
+function statusLabel(s) {
+  return { delivered:'✓ Delivered', in_transit:'↗ In Transit', failed:'✕ Failed', at_risk:'⚠ At Risk', escalated:'🔴 Escalated' }[s] || s;
+}
+
+function fmt(dt) {
+  if (!dt) return '—';
+  const d = new Date(dt.replace(' ','T'));
+  if (isNaN(d.getTime())) return dt;
+  return d.toLocaleString('en-GB',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// ─── CHARTS ───────────────────────────────────────────────────────────────────
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#111620', borderColor: '#1a2235', borderWidth: 1,
+      titleColor: '#dde4f0', bodyColor: '#64748b',
+      titleFont: { family: 'IBM Plex Mono', size: 11 },
+      bodyFont: { family: 'IBM Plex Mono', size: 10 }
+    }
+  },
+  scales: {
+    x: { ticks: { color: '#4a5568', font: { family: 'IBM Plex Mono', size: 9 } }, grid: { color: 'rgba(26,34,53,0.8)' } },
+    y: { ticks: { color: '#4a5568', font: { family: 'IBM Plex Mono', size: 9 } }, grid: { color: 'rgba(26,34,53,0.8)' } }
+  }
+};
+
+function buildCharts() {
+  Chart.defaults.color = '#4a5568';
+
+  hubChart = new Chart(document.getElementById('hubChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 4 }] },
+    options: { ...chartDefaults }
+  });
+
+  statusChart = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Delivered','In Transit','At Risk','Failed','Escalated'],
+      datasets: [{ data: [], backgroundColor: ['rgba(0,212,170,0.8)','rgba(77,159,255,0.8)','rgba(255,209,102,0.8)','rgba(255,71,87,0.8)','rgba(200,0,30,0.9)'], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { display: true, position: 'right', labels: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 9 }, boxWidth: 10, padding: 10 } },
+        tooltip: chartDefaults.plugins.tooltip
+      }
+    }
+  });
+
+  driverChart = new Chart(document.getElementById('driverChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(255,209,102,0.7)', borderRadius: 4 }] },
+    options: { ...chartDefaults, indexAxis: 'y' }
+  });
+}
+
+function updateCharts(data) {
+  // Hub on-time rate (for delivered only; if none, show in-transit count as proxy)
+  const hubs = ['North','South','East'];
+  const hubRates = hubs.map(h => {
+    const hDelivered = data.filter(d => d.hub === h && d.status === 'delivered');
+    if (hDelivered.length === 0) return 0;
+    const onTime = hDelivered.filter(d => d.delay_minutes !== null && d.delay_minutes <= 10).length;
+    return Math.round((onTime / hDelivered.length) * 100);
+  });
+  hubChart.data.labels = hubs;
+  hubChart.data.datasets[0].data = hubRates;
+  hubChart.data.datasets[0].backgroundColor = hubRates.map(r => r >= 80 ? 'rgba(0,212,170,0.7)' : r >= 60 ? 'rgba(255,209,102,0.7)' : 'rgba(77,159,255,0.5)');
+  hubChart.options.scales.y.max = 100;
+  hubChart.update();
+
+  // Status donut
+  statusChart.data.datasets[0].data = [
+    data.filter(d => d.status === 'delivered').length,
+    data.filter(d => d.status === 'in_transit').length,
+    data.filter(d => d.status === 'at_risk').length,
+    data.filter(d => d.status === 'failed').length,
+    data.filter(d => d.status === 'escalated').length,
+  ];
+  statusChart.update();
+
+  // Driver avg delay (only those with delay data)
+  const drivers = [...new Set(data.map(d => d.driver_name))];
+  const driverDelays = drivers.map(n => {
+    const late = data.filter(d => d.driver_name === n && d.delay_minutes !== null && d.delay_minutes > 0);
+    return { name: n.split(' ')[0], avg: late.length ? Math.round(late.reduce((a,b) => a + b.delay_minutes, 0) / late.length) : 0 };
+  }).filter(d => d.avg > 0).sort((a,b) => b.avg - a.avg).slice(0, 8);
+
+  driverChart.data.labels = driverDelays.map(d => d.name);
+  driverChart.data.datasets[0].data = driverDelays.map(d => d.avg);
+  driverChart.data.datasets[0].backgroundColor = driverDelays.map(d => d.avg >= 45 ? 'rgba(255,71,87,0.7)' : d.avg >= 20 ? 'rgba(255,209,102,0.7)' : 'rgba(0,212,170,0.7)');
+  driverChart.update();
+}
+
+document.getElementById('searchBox').addEventListener('input', e => {
+  searchText = e.target.value;
+  currentPage = 1;
+  applyFilters();
+});
+</script>
+</body>
+</html>
