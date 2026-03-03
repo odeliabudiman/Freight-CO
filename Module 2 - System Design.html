@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 2 — FreightCo System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2330;
+    --accent: #00d4aa;
+    --accent2: #ff6b35;
+    --accent3: #4d9fff;
+    --warn: #ffd166;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --layer1: #161b26;
+    --layer2: #1a2035;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 32px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    background: rgba(0,212,170,0.08);
+    border: 1px solid rgba(0,212,170,0.2);
+    padding: 3px 10px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .header-left h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .header-left h1 span { color: var(--accent); }
+
+  .header-left p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .header-right {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .header-right strong { color: var(--text); }
+
+  /* Architecture canvas */
+  .arch {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  /* Layer rows */
+  .layer {
+    display: grid;
+    gap: 6px;
+    position: relative;
+  }
+
+  .layer-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 0 4px 2px;
+    margin-top: 8px;
+  }
+
+  /* Connector arrow rows */
+  .arrows {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  .arrow-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    gap: 0;
+  }
+
+  .arrow-line {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    position: relative;
+  }
+
+  .arrow-line.accent { background: var(--accent); opacity: 0.5; }
+  .arrow-line.accent2 { background: var(--accent2); opacity: 0.5; }
+  .arrow-line.accent3 { background: var(--accent3); opacity: 0.5; }
+  .arrow-line.warn { background: var(--warn); opacity: 0.5; }
+
+  .arrow-tip {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid var(--border);
+  }
+  .arrow-tip.accent { border-top-color: var(--accent); opacity: 0.6; }
+  .arrow-tip.accent2 { border-top-color: var(--accent2); opacity: 0.6; }
+  .arrow-tip.accent3 { border-top-color: var(--accent3); opacity: 0.6; }
+  .arrow-tip.warn { border-top-color: var(--warn); opacity: 0.6; }
+
+  .arrow-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+
+  /* Nodes */
+  .row {
+    display: grid;
+    gap: 8px;
+  }
+
+  .row-3 { grid-template-columns: repeat(3, 1fr); }
+  .row-4 { grid-template-columns: repeat(4, 1fr); }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-1 { grid-template-columns: 1fr; }
+
+  .node {
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .node:hover { border-color: rgba(0,212,170,0.3); }
+
+  .node.accent-node { border-color: rgba(0,212,170,0.25); background: rgba(0,212,170,0.04); }
+  .node.warn-node   { border-color: rgba(255,209,102,0.25); background: rgba(255,209,102,0.04); }
+  .node.orange-node { border-color: rgba(255,107,53,0.25); background: rgba(255,107,53,0.04); }
+  .node.blue-node   { border-color: rgba(77,159,255,0.25); background: rgba(77,159,255,0.04); }
+
+  .node-icon {
+    font-size: 18px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .node-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .node-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .node-sub.warn { color: var(--warn); }
+  .node-sub.orange { color: var(--accent2); }
+  .node-sub.blue { color: var(--accent3); }
+
+  .node-desc {
+    font-size: 10.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .node-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: rgba(0,212,170,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,212,170,0.2);
+  }
+
+  .node-tag.warn { background: rgba(255,209,102,0.1); color: var(--warn); border-color: rgba(255,209,102,0.2); }
+  .node-tag.orange { background: rgba(255,107,53,0.1); color: var(--accent2); border-color: rgba(255,107,53,0.2); }
+  .node-tag.blue { background: rgba(77,159,255,0.1); color: var(--accent3); border-color: rgba(77,159,255,0.2); }
+
+  /* Wide connector bar */
+  .hbar {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+    margin: 4px 0;
+  }
+
+  /* Section container */
+  .section-box {
+    border: 1px dashed rgba(100,116,139,0.2);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 4px;
+    position: relative;
+  }
+
+  .section-box-label {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+    background: var(--bg);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0 6px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Assumptions box */
+  .assumptions {
+    margin-top: 20px;
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+  }
+
+  .assumptions h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .assumptions ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 24px;
+  }
+
+  .assumptions li {
+    font-size: 11px;
+    color: var(--muted);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .assumptions li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Sprint badges */
+  .sprint-badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  .s1 { background: rgba(0,212,170,0.12); color: var(--accent); }
+  .s2 { background: rgba(77,159,255,0.12); color: var(--accent3); }
+
+  /* Horizontal flow for alert path */
+  .hflow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .hflow-node {
+    flex: 1;
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+
+  .hflow-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .hflow-arrow-line {
+    width: 14px;
+    height: 1px;
+    background: var(--warn);
+    opacity: 0.5;
+  }
+
+  .hflow-arrow-tip {
+    width: 0; height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--warn);
+    opacity: 0.6;
+  }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="tag">Module 2 — System Design</div>
+      <h1>FreightCo Delivery<br>Monitoring <span>Architecture</span></h1>
+      <p>FDE Candidate Assessment · Live Data Pipeline Design</p>
+    </div>
+    <div class="header-right">
+      <div><strong>Client</strong> FreightCo</div>
+      <div><strong>Hubs</strong> North / South / East</div>
+      <div><strong>Drivers</strong> 200+</div>
+      <div><strong>Timeline</strong> 2 Sprints / 4 Weeks</div>
+      <div><strong>Constraint</strong> No DevOps · Managed Services</div>
+    </div>
+  </div>
+
+  <!-- Architecture Diagram -->
+  <div class="arch">
+
+    <!-- Layer 0: Data Sources -->
+    <div class="layer-label">① Data Sources</div>
+    <div class="section-box">
+      <div class="section-box-label">Ingestion — Sprint 1</div>
+      <div class="row row-3">
+
+        <div class="node orange-node">
+          <span class="node-icon">📦</span>
+          <div class="node-title">Hub Coordinator Uploads</div>
+          <div class="node-sub orange">CSV / Excel Export</div>
+          <div class="node-desc">Existing daily export from each hub. Retained as fallback during transition. Coordinators upload to shared folder.</div>
+          <span class="node-tag orange">Legacy · Fallback</span>
+        </div>
+
+        <div class="node accent-node">
+          <span class="node-icon">📡</span>
+          <div class="node-title">Driver Mobile App / GPS</div>
+          <div class="node-sub">REST API / Webhook</div>
+          <div class="node-desc">Drivers update delivery status (delivered / failed) via mobile. GPS timestamp auto-captures actual_time on status change.</div>
+          <span class="node-tag">Sprint 1 · Primary</span>
+        </div>
+
+        <div class="node blue-node">
+          <span class="node-icon">🔗</span>
+          <div class="node-title">TMS / Dispatch System</div>
+          <div class="node-sub blue">Webhook or Polling API</div>
+          <div class="node-desc">Pulls scheduled_time, driver_name, hub, and delivery_id. Synced every 15 min if no real-time webhook available.</div>
+          <span class="node-tag blue">Sprint 1 · Scheduled</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Arrow row 1 -->
+    <div class="arrows">
+      <div class="arrow-group">
+        <div class="arrow-line orange"></div>
+        <div class="arrow-tip orange"></div>
+        <div class="arrow-label">CSV upload</div>
+      </div>
+      <div class="arrow-group">
+        <div class="arrow-line accent"></div>
+        <div class="arrow-tip accent"></div>
+        <div class="arrow-label">status event</div>
+      </div>
+      <div class="arrow-group">
+        <div class="arrow-line accent3"></div>
+        <div class="arrow-tip accent3"></div>
+        <div class="arrow-label">scheduled data</div>
+      </div>
+    </div>
+
+    <!-- Layer 1: Ingestion -->
+    <div class="layer-label">② Ingestion & Event Stream</div>
+    <div class="section-box">
+      <div class="section-box-label">Managed Queue — Sprint 1</div>
+      <div class="row row-2">
+
+        <div class="node accent-node">
+          <span class="node-icon">⚡</span>
+          <div class="node-title">Event Ingestion API</div>
+          <div class="node-sub">AWS API Gateway + Lambda</div>
+          <div class="node-desc">Lightweight serverless endpoint receives driver status updates, validates payload (delivery_id, actual_time, status), and pushes to queue. Zero infra to manage.</div>
+          <span class="node-tag">Serverless · Auto-scale</span>
+        </div>
+
+        <div class="node accent-node">
+          <span class="node-icon">📬</span>
+          <div class="node-title">Message Queue</div>
+          <div class="node-sub">AWS SQS (or Supabase Realtime)</div>
+          <div class="node-desc">Decouples ingestion from processing. Guarantees at-least-once delivery. Dead-letter queue catches failed events for retry. No broker to manage.</div>
+          <span class="node-tag">Managed · DLQ enabled</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Arrow row 2 -->
+    <div class="arrows">
+      <div class="arrow-group" style="flex:2">
+        <div class="arrow-line accent"></div>
+        <div class="arrow-tip accent"></div>
+        <div class="arrow-label">validated events</div>
+      </div>
+      <div class="arrow-group" style="flex:1">
+        <div class="arrow-line warn"></div>
+        <div class="arrow-tip warn"></div>
+        <div class="arrow-label">delay calc trigger</div>
+      </div>
+    </div>
+
+    <!-- Layer 2: Processing -->
+    <div class="layer-label">③ Processing & Business Logic</div>
+    <div class="section-box">
+      <div class="section-box-label">Core Logic — Sprint 1</div>
+      <div class="row row-3">
+
+        <div class="node accent-node">
+          <span class="node-icon">⚙️</span>
+          <div class="node-title">Delay Calculator</div>
+          <div class="node-sub">Lambda / Supabase Edge Fn</div>
+          <div class="node-desc">Computes delay_minutes = actual_time − scheduled_time. Updates delivery record. Flags status as at_risk if in_transit AND current_time > scheduled_time + 30 min.</div>
+          <span class="node-tag">Rule: +45 min = alert</span>
+        </div>
+
+        <div class="node warn-node">
+          <span class="node-icon">🚨</span>
+          <div class="node-title">Alert Engine</div>
+          <div class="node-sub warn">n8n / Make.com Workflow</div>
+          <div class="node-desc">Triggered when delay_minutes ≥ 45. Looks up hub coordinator contact. Fires SMS via Twilio + email via SendGrid. Deduplicates — one alert per delivery per threshold breach.</div>
+          <span class="node-tag warn">Sprint 1 · Core Feature</span>
+        </div>
+
+        <div class="node blue-node">
+          <span class="node-icon">🕐</span>
+          <div class="node-title">Scheduled Poller</div>
+          <div class="node-sub blue">Cron Lambda (15 min)</div>
+          <div class="node-desc">Scans in_transit deliveries where no actual_time received. Re-checks against current time. Catches silent failures — drivers who never updated status.</div>
+          <span class="node-tag blue">Sprint 2 · Safety net</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Arrow row 3 -->
+    <div class="arrows">
+      <div class="arrow-group">
+        <div class="arrow-line accent"></div>
+        <div class="arrow-tip accent"></div>
+        <div class="arrow-label">write records</div>
+      </div>
+      <div class="arrow-group">
+        <div class="arrow-line warn"></div>
+        <div class="arrow-tip warn"></div>
+        <div class="arrow-label">alert payload</div>
+      </div>
+      <div class="arrow-group">
+        <div class="arrow-line accent3"></div>
+        <div class="arrow-tip accent3"></div>
+        <div class="arrow-label">read/write</div>
+      </div>
+    </div>
+
+    <!-- Layer 3: Storage + Notifications -->
+    <div class="layer-label">④ Storage · Notifications · Dashboard</div>
+    <div class="section-box">
+      <div class="section-box-label">Persistence & Output — Sprint 1 + 2</div>
+      <div class="row row-4">
+
+        <div class="node accent-node">
+          <span class="node-icon">🗄️</span>
+          <div class="node-title">Delivery Database</div>
+          <div class="node-sub">Supabase (PostgreSQL)</div>
+          <div class="node-desc">Stores all deliveries with delivery_id, driver, hub, times, status, delay_minutes. Row-level security. Real-time subscriptions for dashboard. Free tier sufficient for MVP.</div>
+          <span class="node-tag">Managed Postgres</span>
+        </div>
+
+        <div class="node warn-node">
+          <span class="node-icon">📱</span>
+          <div class="node-title">SMS Alert</div>
+          <div class="node-sub warn">Twilio</div>
+          <div class="node-desc">Sends formatted alert to hub coordinator: driver name, hub, delivery ID, minutes late. Pay-per-message — no fixed infra cost. Escalation to ops manager at +90 min.</div>
+          <span class="node-tag warn">Sprint 1</span>
+        </div>
+
+        <div class="node warn-node">
+          <span class="node-icon">📧</span>
+          <div class="node-title">Email Alert</div>
+          <div class="node-sub warn">SendGrid</div>
+          <div class="node-desc">Richer email with delivery detail, driver history, and suggested action link. Same trigger as SMS. HTML template stored in n8n/Make workflow. Free tier: 100/day.</div>
+          <span class="node-tag warn">Sprint 1</span>
+        </div>
+
+        <div class="node blue-node">
+          <span class="node-icon">📊</span>
+          <div class="node-title">Ops Dashboard</div>
+          <div class="node-sub blue">Retool / Metabase</div>
+          <div class="node-desc">Real-time table of all in-transit deliveries. KPIs: on-time %, avg delay by hub/driver. Filter by hub. No-code setup — connects directly to Supabase. Hub coordinators can self-serve.</div>
+          <span class="node-tag blue">Sprint 2</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- end arch -->
+
+  <!-- Alert Flow Strip -->
+  <div style="margin-top: 20px;">
+    <div class="layer-label">⑤ Alert Trigger Flow (Happy Path)</div>
+    <div class="hflow">
+      <div class="hflow-node" style="border-color: rgba(0,212,170,0.25); background: rgba(0,212,170,0.04);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px;">Driver Status Update</div>
+        <div style="font-size:10px; color:var(--muted);">in_transit · no actual_time</div>
+      </div>
+      <div class="hflow-arrow"><div class="hflow-arrow-line"></div><div class="hflow-arrow-tip"></div></div>
+      <div class="hflow-node" style="border-color: rgba(0,212,170,0.25); background: rgba(0,212,170,0.04);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px;">Delay Check</div>
+        <div style="font-size:10px; color:var(--muted);">now − scheduled_time</div>
+      </div>
+      <div class="hflow-arrow"><div class="hflow-arrow-line"></div><div class="hflow-arrow-tip"></div></div>
+      <div class="hflow-node" style="border-color: rgba(255,209,102,0.35); background: rgba(255,209,102,0.06);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px; color:var(--warn);">≥ 45 min late?</div>
+        <div style="font-size:10px; color:var(--muted);">Threshold gate</div>
+      </div>
+      <div class="hflow-arrow"><div class="hflow-arrow-line"></div><div class="hflow-arrow-tip"></div></div>
+      <div class="hflow-node" style="border-color: rgba(255,209,102,0.35); background: rgba(255,209,102,0.06);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px; color:var(--warn);">Dedup Check</div>
+        <div style="font-size:10px; color:var(--muted);">Already alerted?</div>
+      </div>
+      <div class="hflow-arrow"><div class="hflow-arrow-line"></div><div class="hflow-arrow-tip"></div></div>
+      <div class="hflow-node" style="border-color: rgba(255,107,53,0.35); background: rgba(255,107,53,0.06);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px; color:var(--accent2);">Fire Alerts</div>
+        <div style="font-size:10px; color:var(--muted);">SMS + Email → Coordinator</div>
+      </div>
+      <div class="hflow-arrow"><div class="hflow-arrow-line"></div><div class="hflow-arrow-tip"></div></div>
+      <div class="hflow-node" style="border-color: rgba(77,159,255,0.25); background: rgba(77,159,255,0.04);">
+        <div style="font-size:11px; font-weight:600; margin-bottom:3px; color:var(--accent3);">Log to DB</div>
+        <div style="font-size:10px; color:var(--muted);">alert_sent_at timestamp</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:rgba(0,212,170,0.5)"></div>
+      Sprint 1 — Core Pipeline
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:rgba(77,159,255,0.5)"></div>
+      Sprint 2 — Dashboard & Hardening
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:rgba(255,209,102,0.5)"></div>
+      Alert Path (Critical)
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:rgba(255,107,53,0.5)"></div>
+      Legacy / CSV Fallback
+    </div>
+    <div class="legend-item" style="margin-left:auto; font-size:9px; color:var(--muted);">
+      All services: managed / serverless · No dedicated DevOps required
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
