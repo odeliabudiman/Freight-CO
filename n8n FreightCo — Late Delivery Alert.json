@@ -1,0 +1,1031 @@
+{
+  "name": "FreightCo — Late Delivery Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -912,
+        32
+      ],
+      "id": "0fd857b2-ba12-43e3-90c7-2a53c4822dd8",
+      "name": "Every 15 Min"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delivery-update",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -864,
+        -144
+      ],
+      "id": "7b6a4547-1a26-49ae-a958-293f42ce31f4",
+      "name": "Driver App Webhook",
+      "webhookId": "3d0e9e9c-92db-4bd7-9713-af9fc6fa3fdf"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "deliveries",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "in_transit"
+            },
+            {
+              "keyName": "actual_time",
+              "condition": "is",
+              "keyValue": "NULL"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        32
+      ],
+      "id": "78446954-75ca-4ba1-9330-d91852691e71",
+      "name": "Fetch In-Transit Deliveries",
+      "credentials": {
+        "supabaseApi": {
+          "id": "fdsJKfOimAaFqbVF",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "feliciabudiman2505@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Late Delivery Alert — {{ $json.hub }} Hub",
+        "contentType": "text/html",
+        "contentValue": "=<h2>⚠️ Late Delivery Alert</h2>\n<p><strong>Driver:</strong> {{ $json.driver_name }}</p>\n<p><strong>Hub:</strong> {{ $json.hub }}</p>\n<p><strong>Delivery ID:</strong> {{ $json.delivery_id }}</p>\n<p><strong>Minutes Late:</strong> {{ $json.computed_delay }}</p>\n<p><strong>Scheduled Time:</strong> {{ $json.scheduled_time }}</p>\n<p><strong>Coordinator:</strong> {{ $json.coordinator_name}}</p>",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        432,
+        160
+      ],
+      "id": "a7831a31-119e-4531-b93a-70fca6dc3ded",
+      "name": "Email → Coordinator",
+      "credentials": {
+        "sendGridApi": {
+          "id": "N1xy2Fm7wcnOSR6M",
+          "name": "SendGrid account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "feliciabudiman2505@gmail.com",
+        "toEmail": "= {{ $('Edit Fields').item.json.email }}",
+        "subject": "=⚠ Late Delivery Alert — {{ $json.hub }} Hub",
+        "contentType": "text/html",
+        "contentValue": "=   <h2>Late Delivery Alert</h2>      <p><strong>Driver:</strong> {{ $json.driver_name }}</p>      <p><strong>Hub:</strong> {{ $json.hub }}</p>      <p><strong>Delivery ID:</strong> {{ $json.delivery_id }}</p>      <p><strong>Minutes Late:</strong>  {{ $('Compute Delay').item.json.computed_delay }}</p>",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        992,
+        16
+      ],
+      "id": "a74f58b5-a744-4233-aeb0-b313199d6953",
+      "name": "Email → Coordinator1",
+      "credentials": {
+        "sendGridApi": {
+          "id": "N1xy2Fm7wcnOSR6M",
+          "name": "SendGrid account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6e7713da-5893-43b8-a412-b2018e849f23",
+              "leftValue": "={{ $json.delay_minutes}}",
+              "rightValue": 90,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        800,
+        144
+      ],
+      "id": "f3f5e075-2cd0-44ab-95e4-4b6c877b625a",
+      "name": "Escalate ≥ 90 min?"
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "delivery_id",
+              "fieldValue": "={{ $json.delivery_id }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "={{ $('Compute Delay').item.json.delay_minutes }}"
+            },
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hub",
+              "fieldValue": "={{ $json.hub }}"
+            },
+            {
+              "fieldId": "driver_name",
+              "fieldValue": "={{ $json.driver_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        240
+      ],
+      "id": "2d03a905-36b1-44b6-a1b5-ba4f5d0646b1",
+      "name": "Log Alert to DB",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "delivery_id",
+              "fieldValue": "= {{ $('Compute Delay').item.json.delivery_id }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "= {{ $('Compute Delay').item.json.computed_delay }}"
+            },
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hub",
+              "fieldValue": "= {{ $('Get Coordinator Contact').item.json.hub }}"
+            },
+            {
+              "fieldId": "driver_name",
+              "fieldValue": "= {{ $('Compute Delay').item.json.driver_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        64
+      ],
+      "id": "56ec0c1a-ae51-452e-b85d-435277d9dbd6",
+      "name": "Log Alert to DB1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "delivery_id",
+              "fieldValue": "={{ $json.delivery_id }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "={{ $json.computed_delay }}"
+            },
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hub",
+              "fieldValue": "={{ $json.hub }}"
+            },
+            {
+              "fieldId": "driver_name",
+              "fieldValue": "={{ $json.driver_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        -96
+      ],
+      "id": "02538a1c-1812-461a-bfc5-50dc1940d3cd",
+      "name": "Log Alert to DB2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "delivery_id",
+              "fieldValue": "={{ $json.delivery_id }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "={{ $json.computed_delay }}"
+            },
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hub",
+              "fieldValue": "={{ $json.hub }}"
+            },
+            {
+              "fieldId": "driver_name",
+              "fieldValue": "={{ $json.driver_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -272
+      ],
+      "id": "8a3aa89f-c743-4558-8c79-ad36feb9011f",
+      "name": "Log Alert to DB3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8253c721-8f0c-4720-926f-1d29687a51cd",
+              "leftValue": "={{ Number($json.computed_delay) }}",
+              "rightValue": 45,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        32
+      ],
+      "id": "771c0686-9596-434e-8e56-367c269e9a07",
+      "name": "Late equal to or more than 45 min"
+    },
+    {
+      "parameters": {
+        "content": "True = not yet alerted → continue\n \nFalse = already alerted → stop",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        128,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "260745e2-fee7-4047-9bbf-3e71794c04d5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "hub_contacts",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "hub",
+              "condition": "eq",
+              "keyValue": "={{ $json.hub }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        368,
+        -192
+      ],
+      "id": "2e4bb68e-ada0-4294-9cff-c38828cea42e",
+      "name": "Get Coordinator Contact",
+      "credentials": {
+        "supabaseApi": {
+          "id": "fdsJKfOimAaFqbVF",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "(682) 688-8690",
+        "to": "={{ $json.phone }}",
+        "message": "=  ⚠️ LATE ALERT [{{ $json.hub }}]      Driver: {{ $json.driver_name }}      ID: {{ $json.delivery_id }}      {{ $json.computed_delay }}min overdue",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        960,
+        -272
+      ],
+      "id": "4ee3597e-2bb5-4a8e-9dfc-01a97ea33827",
+      "name": "SMS → Coordinator",
+      "credentials": {
+        "twilioApi": {
+          "id": "g3uI8EdKjdOgfq5p",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "+628192012505",
+        "to": "= {{ $('Get Coordinator Contact').item.json.phone }}",
+        "message": "=  ⚠️ LATE ALERT [{{ $json.hub }}]      Driver: {{ $json.driver_name }}      ID: {{ $json.delivery_id }}       {{ $('Edit Fields').item.json.computed_delay }}min overdue",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        -80
+      ],
+      "id": "00f4aef6-a53a-49a4-a385-752d268b70e4",
+      "name": "SMS → Coordinator1",
+      "credentials": {
+        "twilioApi": {
+          "id": "g3uI8EdKjdOgfq5p",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "delivery_id",
+              "fieldValue": "={{ $('Compute Delay').item.json.delivery_id }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "={{ $('Compute Delay').item.json.delay_minutes }}"
+            },
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hub",
+              "fieldValue": "={{ $('Compute Delay').item.json.hub}}"
+            },
+            {
+              "fieldId": "driver_name",
+              "fieldValue": "={{ $('Compute Delay').item.json.driver_name}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        592,
+        176
+      ],
+      "id": "f9c65220-0720-4ec7-a377-8305d61d1a09",
+      "name": "Log Alert to DB4",
+      "credentials": {
+        "supabaseApi": {
+          "id": "fdsJKfOimAaFqbVF",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "deliveries",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "delivery_id",
+              "condition": "is",
+              "keyValue": "={{ $json.delivery_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "= {{ $json.computed_delay }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        -272
+      ],
+      "id": "5192aea5-f9b1-446c-bf16-aebe47c1f33f",
+      "name": "Mark Delivery Alerted",
+      "alwaysOutputData": false,
+      "notesInFlow": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "deliveries",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "delivery_id",
+              "condition": "is",
+              "keyValue": "={{ $json.delivery_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "= {{ $json.computed_delay }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        -96
+      ],
+      "id": "3bc4ab66-500c-43dd-bf02-8d6fc58256b3",
+      "name": "Mark Delivery Alerted1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "deliveries",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "delivery_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.delivery_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "= {{ $('Compute Delay').item.json.delay_minutes}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        64
+      ],
+      "id": "a22f31d4-9d3f-42f7-aa1f-81be421b27d8",
+      "name": "Mark Delivery Alerted2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "deliveries",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "delivery_id",
+              "condition": "is",
+              "keyValue": "={{ $json.delivery_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alert_sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "delay_minutes",
+              "fieldValue": "= {{ $json.computed_delay }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        256
+      ],
+      "id": "c43a0dd4-d902-4b30-9e1e-2ef1fb1eb926",
+      "name": "Mark Delivery Alerted3",
+      "credentials": {
+        "supabaseApi": {
+          "id": "yYWXkjX0i9dKxgAs",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "feliciabudiman2505@gmail.com",
+        "fromName": "Freight Co",
+        "toEmail": "odeliabudiman@gmail.com",
+        "subject": "Freight Co Alert Failure",
+        "contentValue": "Freight Co Alert Failure",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -272
+      ],
+      "id": "f34a909e-030a-4331-a6f2-37a8079bdb09",
+      "name": "Send an email",
+      "credentials": {
+        "sendGridApi": {
+          "id": "N1xy2Fm7wcnOSR6M",
+          "name": "SendGrid account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        576,
+        -192
+      ],
+      "id": "0836ecbf-cfbc-47f1-bf34-e704c3f53901",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "870c65d5-e0dd-4a95-b6df-02d16fd00ec1",
+              "name": "driver_name",
+              "value": "={{ $('Compute Delay').item.json.driver_name }}",
+              "type": "string"
+            },
+            {
+              "id": "6cbd38fd-80a8-4734-a316-033c400c98c7",
+              "name": "delivery_id",
+              "value": "={{ $('Compute Delay').item.json.delivery_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b1d5a3e4-34e1-4f0a-83e9-2e013de67f10",
+              "name": "computed_delay",
+              "value": "={{ $('Compute Delay').item.json.computed_delay }}",
+              "type": "string"
+            },
+            {
+              "id": "63157488-0a66-4817-94af-11620c410298",
+              "name": "scheduled_time",
+              "value": "={{ $('Compute Delay').item.json.scheduled_time }}",
+              "type": "string"
+            },
+            {
+              "id": "9560ad0a-ac26-49de-a37f-e700b2197111",
+              "name": "hub",
+              "value": "={{ $json.hub }}",
+              "type": "string"
+            },
+            {
+              "id": "f62d5c52-d647-4e9f-9a24-143c601e62b4",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "43a11485-2b79-45ad-b70b-d71a204f95c9",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "d923f10c-6dbb-437e-9dc7-736e2e180316",
+              "name": "coordinator_name",
+              "value": "={{ $('Get Coordinator Contact').item.json.coordinator_name}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": "={{ false }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        784,
+        -192
+      ],
+      "id": "a2fca1b9-5659-4c71-acc9-bf9babab8b43",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst result = [];\n\nfor (const item of items) {\n  const scheduled = new Date(item.json.scheduled_time);\n  const now = new Date();\n  const delayMinutes = Math.round((now - scheduled) / 60000);\n\n  result.push({\n    json: {\n      delivery_id: item.json.delivery_id,\n      driver_name: item.json.driver_name,\n      hub: item.json.hub,\n      scheduled_time: item.json.scheduled_time,\n      actual_time: item.json.actual_time,\n      status: item.json.status,\n      delay_minutes: delayMinutes,\n      alert_sent_at: item.json.alert_sent_at,\n      computed_delay: delayMinutes\n    }\n  });\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        32
+      ],
+      "id": "fd8d3527-904c-490f-8ae6-7471ca16a66b",
+      "name": "Compute Delay"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Driver App Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch In-Transit Deliveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch In-Transit Deliveries": {
+      "main": [
+        [
+          {
+            "node": "Compute Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email → Coordinator": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to DB4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate ≥ 90 min?": {
+      "main": [
+        [
+          {
+            "node": "Email → Coordinator1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SMS → Coordinator1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Alert to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email → Coordinator1": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to DB1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Late equal to or more than 45 min": {
+      "main": [
+        [
+          {
+            "node": "Get Coordinator Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Coordinator Contact": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS → Coordinator": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to DB3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS → Coordinator1": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to DB2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB4": {
+      "main": [
+        [
+          {
+            "node": "Escalate ≥ 90 min?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB3": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery Alerted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB2": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery Alerted1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB1": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery Alerted2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert to DB": {
+      "main": [
+        [
+          {
+            "node": "Mark Delivery Alerted3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivery Alerted": {
+      "main": [
+        [
+          {
+            "node": "Send an email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 15 Min": {
+      "main": [
+        [
+          {
+            "node": "Fetch In-Transit Deliveries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Email → Coordinator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SMS → Coordinator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Delay": {
+      "main": [
+        [
+          {
+            "node": "Late equal to or more than 45 min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Delivery Alerted3": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b9f3a5f8-2fa9-4153-8c5d-409c996a6f63",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "99f08a286377ec979f973faf932b056aea2ef88aad4861e729cd602a381389c9"
+  },
+  "id": "VynvD3OFaix8N6wX",
+  "tags": []
+}
