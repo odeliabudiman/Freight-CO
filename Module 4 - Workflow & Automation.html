@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 4 — FreightCo Alert Workflow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2330;
+    --accent: #00d4aa;
+    --accent2: #ff6b35;
+    --accent3: #4d9fff;
+    --warn: #ffd166;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --layer1: #161b26;
+    --layer2: #1a2035;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 32px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--warn);
+    text-transform: uppercase;
+    background: rgba(255,209,102,0.08);
+    border: 1px solid rgba(255,209,102,0.2);
+    padding: 3px 10px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .header-left h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .header-left h1 span { color: var(--warn); }
+  .header-left p { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: 'IBM Plex Mono', monospace; }
+  .header-right { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.8; }
+  .header-right strong { color: var(--text); }
+
+  /* Section title */
+  .sec-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    margin-top: 28px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── VISUAL FLOW ── */
+  .flow-canvas {
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 24px;
+    overflow-x: auto;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    justify-content: center;
+    flex-wrap: nowrap;
+  }
+
+  /* Node */
+  .fn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 120px;
+    flex-shrink: 0;
+  }
+
+  .fn-box {
+    width: 100%;
+    border-radius: 8px;
+    padding: 10px 10px 10px;
+    text-align: center;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    position: relative;
+  }
+
+  .fn-box.trigger  { border-color: rgba(0,212,170,0.4);  background: rgba(0,212,170,0.06); }
+  .fn-box.process  { border-color: rgba(77,159,255,0.35); background: rgba(77,159,255,0.05); }
+  .fn-box.gate     { border-color: rgba(255,209,102,0.4); background: rgba(255,209,102,0.06); transform: rotate(0deg); }
+  .fn-box.action   { border-color: rgba(255,107,53,0.4);  background: rgba(255,107,53,0.06); }
+  .fn-box.end      { border-color: rgba(100,116,139,0.3); background: rgba(100,116,139,0.05); }
+  .fn-box.sms      { border-color: rgba(0,212,170,0.35);  background: rgba(0,212,170,0.05); }
+  .fn-box.email    { border-color: rgba(77,159,255,0.35); background: rgba(77,159,255,0.05); }
+
+  .fn-icon { font-size: 20px; margin-bottom: 5px; display: block; }
+  .fn-label { font-size: 10.5px; font-weight: 600; line-height: 1.3; }
+  .fn-sub { font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  .fn-tag {
+    display: inline-block;
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .fn-tag.t  { background: rgba(0,212,170,0.1);  color: var(--accent); border: 1px solid rgba(0,212,170,0.2); }
+  .fn-tag.p  { background: rgba(77,159,255,0.1); color: var(--accent3); border: 1px solid rgba(77,159,255,0.2); }
+  .fn-tag.g  { background: rgba(255,209,102,0.1); color: var(--warn); border: 1px solid rgba(255,209,102,0.2); }
+  .fn-tag.a  { background: rgba(255,107,53,0.1); color: var(--accent2); border: 1px solid rgba(255,107,53,0.2); }
+  .fn-tag.e  { background: rgba(100,116,139,0.1); color: var(--muted); border: 1px solid rgba(100,116,139,0.2); }
+
+  /* Connector */
+  .conn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding-top: 20px;
+    width: 36px;
+  }
+
+  .conn-line {
+    width: 28px; height: 1px;
+  }
+  .conn-line.acc  { background: var(--accent);  opacity: 0.5; }
+  .conn-line.acc3 { background: var(--accent3); opacity: 0.5; }
+  .conn-line.warn { background: var(--warn);    opacity: 0.5; }
+  .conn-line.acc2 { background: var(--accent2); opacity: 0.5; }
+  .conn-line.mut  { background: var(--muted);   opacity: 0.4; }
+
+  .conn-tip {
+    width: 0; height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+  }
+  .conn-tip.acc  { border-left: 6px solid var(--accent);  opacity: 0.6; }
+  .conn-tip.acc3 { border-left: 6px solid var(--accent3); opacity: 0.6; }
+  .conn-tip.warn { border-left: 6px solid var(--warn);    opacity: 0.6; }
+  .conn-tip.acc2 { border-left: 6px solid var(--accent2); opacity: 0.6; }
+  .conn-tip.mut  { border-left: 6px solid var(--muted);   opacity: 0.4; }
+
+  .conn-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Branch section */
+  .branch-area {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .branch-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .branch-down {
+    width: 1px;
+    height: 20px;
+  }
+  .branch-down.warn { background: var(--warn); opacity:0.4; }
+  .branch-down.mut  { background: var(--muted); opacity:0.3; }
+
+  .branch-tip-down {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+  }
+  .branch-tip-down.warn { border-top: 6px solid var(--warn); opacity:0.6; }
+  .branch-tip-down.mut  { border-top: 6px solid var(--muted); opacity:0.4; }
+
+  .branch-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    text-align: center;
+    margin: 2px 0;
+  }
+  .branch-label.yes { color: var(--accent); }
+  .branch-label.no  { color: var(--muted); }
+
+  /* horizontal bridge for parallel outputs */
+  .parallel-bridge {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 0;
+    margin: 0 auto;
+    position: relative;
+    width: fit-content;
+  }
+
+  .pb-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 120px;
+  }
+
+  .pb-hline {
+    height: 1px;
+    width: 60px;
+  }
+
+  .pb-vline {
+    width: 1px;
+    height: 24px;
+  }
+
+  /* ── WRITTEN DESCRIPTION ── */
+  .written {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .step-card {
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .step-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--warn);
+    flex-shrink: 0;
+    width: 22px;
+  }
+
+  .step-body {}
+
+  .step-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .step-tool {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--warn);
+    margin-bottom: 6px;
+  }
+
+  .step-tool.blue { color: var(--accent3); }
+  .step-tool.green { color: var(--accent); }
+  .step-tool.orange { color: var(--accent2); }
+  .step-tool.muted { color: var(--muted); }
+
+  .step-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .step-code {
+    margin-top: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    color: var(--accent);
+    line-height: 1.6;
+  }
+
+  .step-code .comment { color: var(--muted); }
+  .step-code .key { color: var(--accent3); }
+  .step-code .val { color: var(--warn); }
+  .step-code .str { color: var(--accent2); }
+
+  /* Error + edge cases */
+  .edge-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .edge-card {
+    background: var(--layer1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .edge-title {
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .edge-desc { font-size: 10.5px; color: var(--muted); line-height: 1.5; }
+
+  /* bottom legend */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="tag">Module 4 — Workflow & Automation</div>
+      <h1>Late-Delivery <span>Alert Workflow</span><br>n8n Automation Design</h1>
+      <p>FDE Candidate Assessment · FreightCo · Automated Alerting Pipeline</p>
+    </div>
+    <div class="header-right">
+      <div><strong>Tool</strong> n8n (self-hosted / n8n Cloud)</div>
+      <div><strong>Trigger</strong> Webhook + Cron Schedule</div>
+      <div><strong>Channels</strong> SMS (Twilio) + Email (SendGrid)</div>
+      <div><strong>Threshold</strong> delay_minutes ≥ 45</div>
+      <div><strong>Escalation</strong> +90 min → Ops Manager</div>
+    </div>
+  </div>
+
+  <!-- ── VISUAL FLOW ── -->
+  <div class="sec-title">① Visual Workflow — n8n Node Diagram</div>
+  <div class="flow-canvas">
+
+    <!-- Row 1: Triggers -->
+    <div style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted); letter-spacing:0.15em; margin-bottom:10px; text-transform:uppercase;">Triggers</div>
+    <div class="flow-row" style="gap:16px; margin-bottom:4px;">
+
+      <div class="fn">
+        <div class="fn-box trigger">
+          <span class="fn-icon">🔔</span>
+          <div class="fn-label">Webhook Trigger</div>
+          <div class="fn-sub">Driver app POST<br>/delivery-update</div>
+          <span class="fn-tag t">n8n Webhook</span>
+        </div>
+      </div>
+
+      <div style="width:60px; display:flex; align-items:center; justify-content:center; padding-top:20px;">
+        <div style="width:60px; height:1px; background:var(--border);"></div>
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted); position:absolute;">OR</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box trigger">
+          <span class="fn-icon">⏰</span>
+          <div class="fn-label">Schedule Trigger</div>
+          <div class="fn-sub">Every 15 min<br>cron: */15 * * * *</div>
+          <span class="fn-tag t">n8n Cron</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- down arrows from triggers -->
+    <div class="flow-row" style="gap:16px; margin-bottom:4px;">
+      <div class="branch-col" style="width:120px;">
+        <div class="branch-down warn"></div>
+        <div class="branch-tip-down warn"></div>
+      </div>
+      <div style="width:60px;"></div>
+      <div class="branch-col" style="width:120px;">
+        <div class="branch-down warn"></div>
+        <div class="branch-tip-down warn"></div>
+      </div>
+    </div>
+
+    <!-- Merge label -->
+    <div style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted); letter-spacing:0.15em; margin-bottom:10px; text-transform:uppercase;">Processing</div>
+
+    <!-- Row 2: Fetch + Compute -->
+    <div class="flow-row">
+      <div class="fn">
+        <div class="fn-box process">
+          <span class="fn-icon">🗄️</span>
+          <div class="fn-label">Fetch Deliveries</div>
+          <div class="fn-sub">Supabase node<br>SELECT in_transit</div>
+          <span class="fn-tag p">n8n Supabase</span>
+        </div>
+      </div>
+
+      <div class="conn">
+        <div style="display:flex; align-items:center;">
+          <div class="conn-line acc3"></div>
+          <div class="conn-tip acc3"></div>
+        </div>
+        <div class="conn-label">rows</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box process">
+          <span class="fn-icon">🧮</span>
+          <div class="fn-label">Compute Delay</div>
+          <div class="fn-sub">Code node (JS)<br>now − scheduled_time</div>
+          <span class="fn-tag p">n8n Code</span>
+        </div>
+      </div>
+
+      <div class="conn">
+        <div style="display:flex; align-items:center;">
+          <div class="conn-line warn"></div>
+          <div class="conn-tip warn"></div>
+        </div>
+        <div class="conn-label">delay_minutes</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box gate">
+          <span class="fn-icon">🔀</span>
+          <div class="fn-label">IF: Late ≥ 45?</div>
+          <div class="fn-sub">delay_minutes<br>≥ 45</div>
+          <span class="fn-tag g">n8n IF Node</span>
+        </div>
+      </div>
+
+      <div class="conn">
+        <div style="display:flex; align-items:center;">
+          <div class="conn-line warn"></div>
+          <div class="conn-tip warn"></div>
+        </div>
+        <div class="conn-label">YES branch</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box gate">
+          <span class="fn-icon">🔍</span>
+          <div class="fn-label">Dedup Check</div>
+          <div class="fn-sub">Supabase: alert<br>sent in last 2h?</div>
+          <span class="fn-tag g">n8n IF Node</span>
+        </div>
+      </div>
+
+      <div class="conn">
+        <div style="display:flex; align-items:center;">
+          <div class="conn-line acc2"></div>
+          <div class="conn-tip acc2"></div>
+        </div>
+        <div class="conn-label">NOT alerted</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box process">
+          <span class="fn-icon">📋</span>
+          <div class="fn-label">Lookup Coordinator</div>
+          <div class="fn-sub">Supabase: get hub<br>contact by hub name</div>
+          <span class="fn-tag p">n8n Supabase</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Down arrow to actions -->
+    <div style="display:flex; justify-content:flex-end; padding-right:12px; margin: 4px 0;">
+      <div class="branch-col" style="width:120px;">
+        <div class="branch-down acc2"></div>
+        <div class="branch-tip-down" style="border-top-color: var(--accent2); opacity:0.6;"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Parallel actions label -->
+    <div style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted); letter-spacing:0.15em; margin-bottom:10px; text-transform:uppercase;">Parallel Alert Actions</div>
+
+    <!-- Row 3: Parallel Send -->
+    <div class="flow-row" style="justify-content:center; gap:16px;">
+
+      <div class="fn">
+        <div class="fn-box sms">
+          <span class="fn-icon">📱</span>
+          <div class="fn-label">Send SMS</div>
+          <div class="fn-sub">Twilio node<br>to coordinator phone</div>
+          <span class="fn-tag t">n8n Twilio</span>
+        </div>
+      </div>
+
+      <div style="width:24px; padding-top:20px; display:flex; align-items:center; justify-content:center;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted);">+</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box email">
+          <span class="fn-icon">📧</span>
+          <div class="fn-label">Send Email</div>
+          <div class="fn-sub">SendGrid node<br>HTML template</div>
+          <span class="fn-tag p">n8n SendGrid</span>
+        </div>
+      </div>
+
+      <div style="width:24px; padding-top:20px; display:flex; align-items:center; justify-content:center;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted);">+</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box gate">
+          <span class="fn-icon">📈</span>
+          <div class="fn-label">IF: ≥ 90 min?</div>
+          <div class="fn-sub">Escalation gate<br>→ Ops Manager</div>
+          <span class="fn-tag g">n8n IF Node</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- down arrow to log -->
+    <div style="display:flex; justify-content:center; margin: 4px 0;">
+      <div class="branch-col">
+        <div class="branch-down acc"></div>
+        <div class="branch-tip-down" style="border-top-color: var(--accent); opacity:0.5;"></div>
+      </div>
+    </div>
+
+    <!-- Row 4: Log -->
+    <div style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:8px; color:var(--muted); letter-spacing:0.15em; margin-bottom:10px; text-transform:uppercase;">Finalize</div>
+    <div class="flow-row" style="justify-content:center; gap:16px;">
+
+      <div class="fn">
+        <div class="fn-box end">
+          <span class="fn-icon">💾</span>
+          <div class="fn-label">Log Alert to DB</div>
+          <div class="fn-sub">Supabase: insert<br>alerts table row</div>
+          <span class="fn-tag e">n8n Supabase</span>
+        </div>
+      </div>
+
+      <div class="conn">
+        <div style="display:flex; align-items:center;">
+          <div class="conn-line mut"></div>
+          <div class="conn-tip mut"></div>
+        </div>
+        <div class="conn-label">done</div>
+      </div>
+
+      <div class="fn">
+        <div class="fn-box end">
+          <span class="fn-icon">✅</span>
+          <div class="fn-label">Mark Processed</div>
+          <div class="fn-sub">Update delivery:<br>alert_sent_at = now</div>
+          <span class="fn-tag e">n8n Supabase</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- end flow-canvas -->
+
+
+  <!-- ── WRITTEN DESCRIPTION ── -->
+  <div class="sec-title">② Written Step-by-Step Description</div>
+  <div class="written">
+
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <div class="step-body">
+        <div class="step-title">Trigger — Webhook or Schedule</div>
+        <div class="step-tool">n8n: Webhook Node + Cron Schedule Node</div>
+        <div class="step-desc">Two triggers feed the same workflow. <strong>Webhook:</strong> the driver mobile app POSTs to <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">/webhook/delivery-update</code> on every status change, firing the workflow in real-time. <strong>Cron:</strong> runs every 15 minutes as a safety net to catch silent failures — drivers who went offline without submitting a final status update.</div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <div class="step-body">
+        <div class="step-title">Fetch In-Transit Deliveries</div>
+        <div class="step-tool green">n8n: Supabase Node (SELECT)</div>
+        <div class="step-desc">Queries the Supabase <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">deliveries</code> table for all rows where <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">status = 'in_transit'</code> and <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">actual_time IS NULL</code>. Returns each delivery as a separate n8n item so downstream nodes process them in parallel.</div>
+        <div class="step-code">
+          <span class="comment">-- Supabase filter</span><br>
+          <span class="key">status</span> = <span class="str">'in_transit'</span><br>
+          <span class="key">actual_time</span> <span class="val">IS NULL</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <div class="step-body">
+        <div class="step-title">Compute Delay Minutes</div>
+        <div class="step-tool blue">n8n: Code Node (JavaScript)</div>
+        <div class="step-desc">For each delivery, calculates how overdue it is using the current server time vs the <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">scheduled_time</code> field. Outputs a <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">computed_delay</code> value in minutes, added as a new field on the item.</div>
+        <div class="step-code">
+          <span class="key">const</span> delay = (<span class="val">Date.now()</span><br>
+          &nbsp;&nbsp;- <span class="val">new Date</span>(<span class="str">scheduled_time</span>))<br>
+          &nbsp;&nbsp;/ <span class="val">60000</span>;<br>
+          <span class="key">return</span> { ...item, <span class="str">computed_delay</span>: delay }
+        </div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">04</div>
+      <div class="step-body">
+        <div class="step-title">Gate 1 — Threshold Check (≥ 45 min)</div>
+        <div class="step-tool">n8n: IF Node</div>
+        <div class="step-desc">Filters items to only those where <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">computed_delay ≥ 45</code>. Items that pass continue down the <strong>true</strong> branch. Items below the threshold are dropped silently — no alert, no noise. This is the primary business rule gate from the PRD.</div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">05</div>
+      <div class="step-body">
+        <div class="step-title">Gate 2 — Deduplication Check</div>
+        <div class="step-tool">n8n: Supabase Node + IF Node</div>
+        <div class="step-desc">Queries the <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">alerts</code> table: has an alert already been sent for this <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">delivery_id</code> within the last 2 hours? If yes — skip. This prevents coordinators from being spammed on every cron tick. The 2-hour window is configurable.</div>
+        <div class="step-code">
+          <span class="comment">-- Dedup query</span><br>
+          <span class="key">delivery_id</span> = <span class="str">{{delivery_id}}</span><br>
+          <span class="key">alert_sent_at</span> &gt; <span class="val">now() - interval '2h'</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">06</div>
+      <div class="step-body">
+        <div class="step-title">Lookup Hub Coordinator Contact</div>
+        <div class="step-tool green">n8n: Supabase Node (SELECT)</div>
+        <div class="step-desc">Fetches the coordinator's name, phone number, and email from a <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">hub_contacts</code> table using the delivery's <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">hub</code> field (North / South / East). This keeps contacts editable by ops without touching the workflow.</div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">07</div>
+      <div class="step-body">
+        <div class="step-title">Send SMS Alert via Twilio</div>
+        <div class="step-tool orange">n8n: Twilio Node</div>
+        <div class="step-desc">Sends a concise SMS to the hub coordinator. Message includes driver name, hub, delivery ID, and minutes late. Character limit kept to 1 SMS segment (&lt;160 chars) to control cost.</div>
+        <div class="step-code">
+          <span class="comment">// SMS body template</span><br>
+          <span class="str">⚠️ LATE ALERT [{{hub}}]</span><br>
+          <span class="str">Driver: {{driver_name}}</span><br>
+          <span class="str">ID: {{delivery_id}}</span><br>
+          <span class="str">{{computed_delay}}min overdue</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">08</div>
+      <div class="step-body">
+        <div class="step-title">Send Email Alert via SendGrid</div>
+        <div class="step-tool blue">n8n: SendGrid Node</div>
+        <div class="step-desc">Sends a richer HTML email with full delivery context: driver name, hub, scheduled vs actual time, delay summary, and a direct link to the Retool dashboard filtered to that driver. SendGrid free tier covers 100 emails/day — sufficient for 200 drivers.</div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">09</div>
+      <div class="step-body">
+        <div class="step-title">Escalation Gate — ≥ 90 Minutes</div>
+        <div class="step-tool">n8n: IF Node → Twilio + SendGrid</div>
+        <div class="step-desc">A second IF node checks if <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">computed_delay ≥ 90</code>. If true, fires a separate SMS + email to the <strong>Operations Manager</strong> (not just the hub coordinator). This escalation path runs in parallel with the coordinator alert — both receive notifications simultaneously.</div>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Log Alert & Mark Processed</div>
+        <div class="step-tool green">n8n: Supabase Node (INSERT + UPDATE)</div>
+        <div class="step-desc">Two final writes: (1) INSERT a row into the <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">alerts</code> table with delivery_id, delay value, channel, and timestamp. (2) UPDATE the delivery row with <code style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--accent)">alert_sent_at = now()</code>. This feeds the dedup gate on subsequent runs and enables audit history for the dashboard.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(0,212,170,0.5)"></div>Trigger / Data Fetch</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(77,159,255,0.5)"></div>Processing / Compute</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,209,102,0.5)"></div>Decision Gate</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,107,53,0.5)"></div>Alert Actions</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(100,116,139,0.5)"></div>Finalize / Log</div>
+    <div class="legend-item" style="margin-left:auto; font-size:9px; color:var(--muted);">Tool: n8n · DB: Supabase · SMS: Twilio · Email: SendGrid</div>
+  </div>
+
+</div>
+</body>
+</html>
